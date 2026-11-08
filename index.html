@@ -68,7 +68,7 @@ let ME = null, LANG = "uz";
 const I = {
   uz: { home: "Asosiy", profile: "Profil", hello: "Salom", today: "Bugungi AI so'rovlar", send: "Yuborish", sent: "Qabul qilindi! Natija bot chatiga keladi.", toChat: "Botga qaytish",
     back: "← Orqaga", write: "Ma'lumotlarni yozing", openChat: "Bot chatida ochildi", role: "Rolingiz", premium: "Premium", none: "yo'q", newCourse: "➕ Yangi kurs",
-    courses: "Kurslaringiz", start: "▶️ Darsni boshlash", subject: "Fan yoki til", tlevel: "Ustoz darajasi", tstyle: "Ustoz fe'li", slevel: "Sizning darajangiz",
+    courses: "Kurslaringiz", start: "▶️ Darsni boshlash", subject: "Fan yoki til", tlang: "Dars tili (tushuntirish, reja, uy vazifasi)", tlevel: "Ustoz darajasi", tstyle: "Ustoz fe'li", slevel: "Sizning darajangiz",
     length: "Davomiyligi", tz: "Vaqt mintaqasi", time: "Dars vaqti (bo'sh — o'zim boshlayman)", goal: "Maqsad va ismingiz", create: "Kursni yaratish", err: "Xatolik. Qayta urinib ko'ring.",
     noTg: "Bu sahifa Telegram ichida (GreenBooks bot) ochilishi kerak.", tutorIntro: "Shaxsiy ustoz: reja tuzadi, har kuni dars o'tadi, uy vazifasini tekshiradi va o'tilganlarni eslab qoladi.",
     student: "🎓 Talaba ishlari", studentSub: "Referat, kurs ishi, taqdimot, test",
@@ -78,7 +78,7 @@ const I = {
     liveHint: "Quloqchin bilan gaplashsangiz yanada yaxshi eshitiladi.", micErr: "Mikrofonga ruxsat berilmadi. Telegram sozlamalarida mikrofonga ruxsat bering.", busy: "Hozir band, 1 daqiqadan keyin urinib ko'ring." },
   ru: { home: "Главная", profile: "Профиль", hello: "Привет", today: "AI-запросы сегодня", send: "Отправить", sent: "Принято! Результат придёт в чат бота.", toChat: "Вернуться в бот",
     back: "← Назад", write: "Напишите данные", openChat: "Открыто в чате бота", role: "Ваша роль", premium: "Премиум", none: "нет", newCourse: "➕ Новый курс",
-    courses: "Ваши курсы", start: "▶️ Начать урок", subject: "Предмет или язык", tlevel: "Уровень учителя", tstyle: "Характер учителя", slevel: "Ваш уровень",
+    courses: "Ваши курсы", start: "▶️ Начать урок", subject: "Предмет или язык", tlang: "Язык уроков (объяснения, план, ДЗ)", tlevel: "Уровень учителя", tstyle: "Характер учителя", slevel: "Ваш уровень",
     length: "Длительность", tz: "Часовой пояс", time: "Время урока (пусто — начну сам)", goal: "Цель и ваше имя", create: "Создать курс", err: "Ошибка. Попробуйте ещё раз.",
     noTg: "Откройте эту страницу в Telegram (бот GreenBooks).", tutorIntro: "Личный учитель: план, ежедневные уроки, проверка домашних заданий.",
     student: "🎓 Студенческие работы", studentSub: "Реферат, курсовая, презентация, тест",
@@ -88,7 +88,7 @@ const I = {
     liveHint: "В наушниках слышно лучше.", micErr: "Нет доступа к микрофону. Разрешите его в настройках Telegram.", busy: "Сейчас занято, попробуйте через минуту." },
   en: { home: "Home", profile: "Profile", hello: "Hi", today: "AI requests today", send: "Send", sent: "Got it! The result will arrive in the bot chat.", toChat: "Back to bot",
     back: "← Back", write: "Write the details", openChat: "Opened in the bot chat", role: "Your role", premium: "Premium", none: "no", newCourse: "➕ New course",
-    courses: "Your courses", start: "▶️ Start lesson", subject: "Subject or language", tlevel: "Teacher level", tstyle: "Teacher character", slevel: "Your level",
+    courses: "Your courses", start: "▶️ Start lesson", subject: "Subject or language", tlang: "Lesson language (explanations, plan, homework)", tlevel: "Teacher level", tstyle: "Teacher character", slevel: "Your level",
     length: "Length", tz: "Time zone", time: "Lesson time (empty — I start myself)", goal: "Goal and your name", create: "Create course", err: "Error. Please try again.",
     noTg: "Open this page inside Telegram (GreenBooks bot).", tutorIntro: "Personal teacher: plan, daily lessons, homework checks, remembers past lessons.",
     student: "🎓 Student papers", studentSub: "Essays, course papers, slides, tests",
@@ -158,6 +158,7 @@ function tutor() {
       <div class="acts"><button class="go" onclick="liveLesson(${c.id})">${t("live")}</button><button onclick="startLesson(${c.id})">${t("chat")}</button></div></div>`).join("")}<p class="hint">🎧 ${t("liveHint")}</p></div>` : ""}
     <h2>${t("newCourse")}</h2>
     <label>${t("subject")}</label><input id="subj" list="subjs" placeholder="Ingliz tili"><datalist id="subjs">${["Ingliz tili","Rus tili","Koreys tili","Nemis tili","Matematika","Fizika","Kimyo","Biologiya","Tarix","Ona tili va adabiyot","Dasturlash"].map((x) => `<option value="${x}">`).join("")}</datalist>
+    <label>${t("tlang")}</label>${SEG("lang", [["uz", "🇺🇿 O'zbekcha"], ["ru", "🇷🇺 Русский"], ["en", "🇬🇧 English"], ["ko", "🇰🇷 한국어"]], ["uz", "ru", "en", "ko"].includes(LANG) ? LANG : "uz")}
     <label>${t("tlevel")}</label>${SEG("teacher_level", [["simple", "🙂 Oddiy"], ["pro", "🎓 Professional"], ["genius", "🧠 Geniy"]], "pro")}
     <label>${t("tstyle")}</label>${SEG("teacher_style", [["kind", "😊 Hushmuomala"], ["demanding", "📏 Talabchan"], ["strict", "⚡ Qattiqqul"]], "kind")}
     <label>${t("slevel")}</label>${SEG("student_level", [["zero", "🌱 Noldan"], ["mid", "🌿 O'rtacha"], ["good", "🌳 Yaxshi"]], "zero")}
@@ -175,7 +176,7 @@ function tutor() {
     $("#cb").disabled = true;
     try {
       await api("tutor_new", { subject: $("#subj").value || "Ingliz tili", teacher_level: v("teacher_level"), teacher_style: v("teacher_style"),
-        student_level: v("student_level"), lessons: v("lessons"), tz: v("tz"), lesson_time: $("#tm").value || null, goal: $("#goal").value });
+        student_level: v("student_level"), lessons: v("lessons"), tz: v("tz"), lang: v("lang"), lesson_time: $("#tm").value || null, goal: $("#goal").value });
       done(t("sent"));
     } catch { $("#cb").disabled = false; toast(t("err")); }
   };
