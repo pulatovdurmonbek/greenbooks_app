@@ -98,7 +98,7 @@ function toast(m) { const el = $("#toast"); el.textContent = m; el.style.display
 async function api(action, body = {}) {
   const r = await fetch(API + action, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: tg?.initData || "", ...body }) });
   const j = await r.json().catch(() => ({ error: "net" }));
-  if (j.error) throw new Error(j.error);
+  if (j.error) { const e = new Error(j.error); e.detail = j.detail || ""; throw e; }
   return j;
 }
 function haptic() { try { tg?.HapticFeedback?.impactOccurred("light"); } catch {} }
@@ -267,7 +267,7 @@ function connectLive(info) {
   return new Promise((resolve) => {
     let ok = false;
     const ws = new WebSocket(info.ws); L.ws = ws;
-    ws.onopen = () => ws.send(JSON.stringify({ setup: { model: info.model } }));
+    ws.onopen = () => ws.send(JSON.stringify({ setup: info.setup || { model: info.model } }));
     ws.onmessage = async (ev) => {
       let m; try { m = JSON.parse(typeof ev.data === "string" ? ev.data : await ev.data.text()); } catch { return; }
       if (m.setupComplete) { ok = true; L.ready = true; resolve(true); wsSend({ realtimeInput: { text: "(The call has started. Greet the student and begin the lesson.)" } }); return; }
@@ -299,10 +299,10 @@ async function liveLesson(id) {
   for (let alt = 0; alt < 3 && !L.ended; alt++) {
     let info;
     try { info = await api("live_start", { course_id: id, alt }); } catch (e) {
-      const m = String(e.message);
+      const m = String(e.message), det = e.detail || "";
       cleanupLive(); L.ended = true;
       const msg = m === "limit" ? t("liveLimit") : m === "busy" ? t("busy") : t("liveErr");
-      return V.innerHTML = `<div class="ok"><b>${m === "limit" ? "📚" : "⚠️"}</b><h2>${esc(msg)}</h2>${m === "limit" ? `<button class="btn" onclick="link('premium')">💎 Premium</button>` : ""}<button class="btn ghost" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+      return V.innerHTML = `<div class="ok"><b>${m === "limit" ? "📚" : "⚠️"}</b><h2>${esc(msg)}</h2><p class="hint">${esc(det)}</p>${m === "limit" ? `<button class="btn" onclick="link('premium')">💎 Premium</button>` : ""}<button class="btn ghost" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
     }
     L.max = info.max_sec || 900;
     const r = await connectLive(info);
