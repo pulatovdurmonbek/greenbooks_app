@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>GreenBooks</title>
+<link rel="preconnect" href="https://zupzvekirthvknydjjga.supabase.co" crossorigin>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{--bg:var(--tg-theme-bg-color,#fff);--bg2:var(--tg-theme-secondary-bg-color,#f2f4f7);--tx:var(--tg-theme-text-color,#111);
@@ -96,7 +97,8 @@ const t = (k) => (I[LANG] || I.uz)[k] || I.uz[k] || k;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 function toast(m) { const el = $("#toast"); el.textContent = m; el.style.display = "block"; setTimeout(() => el.style.display = "none", 2600); }
 async function api(action, body = {}) {
-  const r = await fetch(API + action, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ initData: tg?.initData || "", ...body }) });
+  // text/plain — brauzer qo'shimcha OPTIONS so'rovini yubormaydi; mintaqa — baza yonida
+  const r = await fetch(API + action + "?forceFunctionRegion=ap-southeast-1", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ initData: tg?.initData || "", ...body }) });
   const j = await r.json().catch(() => ({ error: "net" }));
   if (j.error) { const e = new Error(j.error); e.detail = j.detail || ""; throw e; }
   return j;
@@ -343,13 +345,20 @@ function go(tab) {
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { haptic(); go(b.dataset.t); });
 (async () => {
   if (!tg?.initData) { V.innerHTML = `<div class="ok"><b>📗</b><h2>GreenBooks</h2><p class="hint">${I.uz.noTg}</p></div>`; return; }
-  V.innerHTML = `<div class="ok"><b>📗</b><p class="hint">…</p></div>`;
+  // oldingi ma'lumot bilan darhol ochamiz, yangisi orqada yuklanadi
+  const uid = tg.initDataUnsafe?.user?.id || 0, CK = "gb_me_" + uid;
+  const apply = (m) => { ME = m; LANG = ME.lang || "uz"; document.querySelectorAll("[data-i]").forEach((el) => el.textContent = t(el.dataset.i)); };
+  let shown = false;
+  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c && c.sections) { apply(c); go("home"); shown = true; } } catch {}
+  if (!shown) V.innerHTML = `<div class="ok"><b>📗</b><p class="hint">…</p></div>`;
   try {
-    ME = await api("me");
-    LANG = ME.lang || "uz";
-    document.querySelectorAll("[data-i]").forEach((el) => el.textContent = t(el.dataset.i));
-    go("home");
-  } catch (e) { V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("err")}</h2><button class="btn" onclick="location.reload()">↻</button></div>`; }
+    const fresh = await api("me");
+    try { localStorage.setItem(CK, JSON.stringify(fresh)); } catch {}
+    const onHome = !shown || document.querySelector("nav button.on")?.dataset.t === "home";
+    const onTutor = document.querySelector("nav button.on")?.dataset.t === "tutor" && !L.ws && !document.getElementById("subj")?.value;
+    apply(fresh);
+    if (onHome && !document.querySelector(".back")) go("home"); else if (onTutor) go("tutor");
+  } catch (e) { if (!shown) V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("err")}</h2><button class="btn" onclick="location.reload()">↻</button></div>`; }
 })();
 </script>
 </body>
