@@ -34,6 +34,16 @@ nav button{flex:1;border:0;background:none;color:var(--hint);font:12px inherit;p
 nav button.on{color:var(--acc)}
 .back{border:0;background:none;color:var(--acc);font:inherit;padding:0;margin-bottom:8px;cursor:pointer}
 .ok{text-align:center;padding:40px 10px}.ok b{font-size:44px;display:block}
+.course{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:8px}.course .acts{display:flex;gap:8px;margin-top:10px}
+.course .acts button{flex:1;border:0;border-radius:10px;padding:11px 6px;font:600 14px inherit;cursor:pointer;background:var(--bg);color:var(--tx)}.course .acts .go{background:var(--btn);color:var(--btx)}
+.live{display:flex;flex-direction:column;align-items:center;text-align:center;padding-top:10px}
+.orb{width:150px;height:150px;border-radius:50%;margin:18px auto 10px;background:radial-gradient(circle at 35% 30%,#5fe0a8,#22a06b 45%,#1d7fd6);box-shadow:0 0 0 0 rgba(34,160,107,.5);transition:transform .2s}
+.orb.talk{animation:pulse 1s infinite}.orb.listen{transform:scale(.92);opacity:.85}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,160,107,.55);transform:scale(1)}70%{box-shadow:0 0 0 26px rgba(34,160,107,0);transform:scale(1.05)}100%{box-shadow:0 0 0 0 rgba(34,160,107,0);transform:scale(1)}}
+.ltx{width:100%;text-align:left;max-height:34vh;overflow-y:auto;background:var(--card);border-radius:14px;padding:10px 12px;margin-top:12px;font-size:14px}
+.ltx p{margin:4px 0}.ltx .u{color:var(--hint)}
+.callbar{display:flex;gap:10px;width:100%;margin-top:14px}.callbar button{flex:1;border:0;border-radius:14px;padding:15px;font:600 15px inherit;cursor:pointer;background:var(--card);color:var(--tx)}
+.callbar .red{background:#e5484d;color:#fff}.callbar .off{background:#555;color:#fff}
 .toast{position:fixed;left:14px;right:14px;bottom:80px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:9}
 </style>
 </head>
@@ -56,19 +66,31 @@ const I = {
     courses: "Kurslaringiz", start: "▶️ Darsni boshlash", subject: "Fan yoki til", tlevel: "Ustoz darajasi", tstyle: "Ustoz fe'li", slevel: "Sizning darajangiz",
     length: "Davomiyligi", tz: "Vaqt mintaqasi", time: "Dars vaqti (bo'sh — o'zim boshlayman)", goal: "Maqsad va ismingiz", create: "Kursni yaratish", err: "Xatolik. Qayta urinib ko'ring.",
     noTg: "Bu sahifa Telegram ichida (GreenBooks bot) ochilishi kerak.", tutorIntro: "Shaxsiy ustoz: reja tuzadi, har kuni dars o'tadi, uy vazifasini tekshiradi va o'tilganlarni eslab qoladi.",
-    student: "🎓 Talaba ishlari", studentSub: "Referat, kurs ishi, taqdimot, test" },
+    student: "🎓 Talaba ishlari", studentSub: "Referat, kurs ishi, taqdimot, test",
+    live: "🎙 Jonli dars", chat: "💬 Chatda", connecting: "Ustozga ulanmoqda…", speaking: "Ustoz gapiryapti…", listening: "Sizni tinglayapti — gapiring",
+    endCall: "⏹ Tugatish", mic: "🎙 Mikrofon", micOff: "🔇 O'chiq", liveDone: "Dars tugadi! Xulosa va uy vazifasi bot chatiga keladi.",
+    liveErr: "Jonli dars hozircha ulanmadi. Chatda davom eting yoki birozdan keyin urinib ko'ring.", liveLimit: "Bepul tarifda kuniga 1 ta dars. 💎 Premium bilan cheksiz.",
+    liveHint: "Quloqchin bilan gaplashsangiz yanada yaxshi eshitiladi.", micErr: "Mikrofonga ruxsat berilmadi. Telegram sozlamalarida mikrofonga ruxsat bering.", busy: "Hozir band, 1 daqiqadan keyin urinib ko'ring." },
   ru: { home: "Главная", profile: "Профиль", hello: "Привет", today: "AI-запросы сегодня", send: "Отправить", sent: "Принято! Результат придёт в чат бота.", toChat: "Вернуться в бот",
     back: "← Назад", write: "Напишите данные", openChat: "Открыто в чате бота", role: "Ваша роль", premium: "Премиум", none: "нет", newCourse: "➕ Новый курс",
     courses: "Ваши курсы", start: "▶️ Начать урок", subject: "Предмет или язык", tlevel: "Уровень учителя", tstyle: "Характер учителя", slevel: "Ваш уровень",
     length: "Длительность", tz: "Часовой пояс", time: "Время урока (пусто — начну сам)", goal: "Цель и ваше имя", create: "Создать курс", err: "Ошибка. Попробуйте ещё раз.",
     noTg: "Откройте эту страницу в Telegram (бот GreenBooks).", tutorIntro: "Личный учитель: план, ежедневные уроки, проверка домашних заданий.",
-    student: "🎓 Студенческие работы", studentSub: "Реферат, курсовая, презентация, тест" },
+    student: "🎓 Студенческие работы", studentSub: "Реферат, курсовая, презентация, тест",
+    live: "🎙 Живой урок", chat: "💬 В чате", connecting: "Подключаемся к учителю…", speaking: "Учитель говорит…", listening: "Слушает вас — говорите",
+    endCall: "⏹ Завершить", mic: "🎙 Микрофон", micOff: "🔇 Выкл", liveDone: "Урок окончен! Итог и домашнее задание придут в чат бота.",
+    liveErr: "Живой урок сейчас недоступен. Продолжите в чате или попробуйте позже.", liveLimit: "Бесплатно — 1 урок в день. 💎 Премиум — без ограничений.",
+    liveHint: "В наушниках слышно лучше.", micErr: "Нет доступа к микрофону. Разрешите его в настройках Telegram.", busy: "Сейчас занято, попробуйте через минуту." },
   en: { home: "Home", profile: "Profile", hello: "Hi", today: "AI requests today", send: "Send", sent: "Got it! The result will arrive in the bot chat.", toChat: "Back to bot",
     back: "← Back", write: "Write the details", openChat: "Opened in the bot chat", role: "Your role", premium: "Premium", none: "no", newCourse: "➕ New course",
     courses: "Your courses", start: "▶️ Start lesson", subject: "Subject or language", tlevel: "Teacher level", tstyle: "Teacher character", slevel: "Your level",
     length: "Length", tz: "Time zone", time: "Lesson time (empty — I start myself)", goal: "Goal and your name", create: "Create course", err: "Error. Please try again.",
     noTg: "Open this page inside Telegram (GreenBooks bot).", tutorIntro: "Personal teacher: plan, daily lessons, homework checks, remembers past lessons.",
-    student: "🎓 Student papers", studentSub: "Essays, course papers, slides, tests" },
+    student: "🎓 Student papers", studentSub: "Essays, course papers, slides, tests",
+    live: "🎙 Live lesson", chat: "💬 In chat", connecting: "Connecting to your teacher…", speaking: "Teacher is speaking…", listening: "Listening — go ahead",
+    endCall: "⏹ End", mic: "🎙 Mic", micOff: "🔇 Muted", liveDone: "Lesson finished! Summary and homework will arrive in the bot chat.",
+    liveErr: "Live lesson is unavailable right now. Continue in chat or try later.", liveLimit: "Free plan: 1 lesson a day. 💎 Premium: unlimited.",
+    liveHint: "Headphones give the best sound.", micErr: "No microphone access. Allow it in Telegram settings.", busy: "Busy right now, try again in a minute." },
 };
 const t = (k) => (I[LANG] || I.uz)[k] || I.uz[k] || k;
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -126,7 +148,8 @@ const SEG = (name, opts, val) => `<div class="seg" data-n="${name}">${opts.map((
 function tutor() {
   const cs = ME.courses || [];
   V.innerHTML = `<h1>👨‍🏫 Ustoz AI</h1><p class="hint">${t("tutorIntro")}</p>
-    ${cs.length ? `<h2>${t("courses")}</h2><div class="list">${cs.map((c) => `<div class="row" onclick="startLesson(${c.id})"><span>${esc(c.subject)}<br><small>${c.day_index}/${c.total || "…"} · ${c.lesson_time || "—"}</small></span><small>${t("start")}</small></div>`).join("")}</div>` : ""}
+    ${cs.length ? `<h2>${t("courses")}</h2><div class="list">${cs.map((c) => `<div class="course"><b>${esc(c.subject)}</b><br><small class="hint">${c.day_index}/${c.total || "…"} · ${c.lesson_time || "—"}</small>
+      <div class="acts"><button class="go" onclick="liveLesson(${c.id})">${t("live")}</button><button onclick="startLesson(${c.id})">${t("chat")}</button></div></div>`).join("")}<p class="hint">🎧 ${t("liveHint")}</p></div>` : ""}
     <h2>${t("newCourse")}</h2>
     <label>${t("subject")}</label><input id="subj" list="subjs" placeholder="Ingliz tili"><datalist id="subjs">${["Ingliz tili","Rus tili","Koreys tili","Nemis tili","Matematika","Fizika","Kimyo","Biologiya","Tarix","Ona tili va adabiyot","Dasturlash"].map((x) => `<option value="${x}">`).join("")}</datalist>
     <label>${t("tlevel")}</label>${SEG("teacher_level", [["simple", "🙂 Oddiy"], ["pro", "🎓 Professional"], ["genius", "🧠 Geniy"]], "pro")}
@@ -155,6 +178,149 @@ async function startLesson(id) {
   haptic();
   try { await api("tutor_start", { course_id: id }); done(t("openChat")); } catch { toast(t("err")); }
 }
+// ------------------------------------------------------------------ 🎙 Jonli dars (Gemini Live, real vaqt)
+const L = { ws: null, inCtx: null, outCtx: null, stream: null, node: null, playT: 0, srcs: [], muted: false, log: [], cur: null, t0: 0, timer: null, course: 0, ended: false, ready: false, max: 900, warned: false };
+const WORKLET = "class M extends AudioWorkletProcessor{process(i){const c=i[0]&&i[0][0];if(c)this.port.postMessage(c.slice(0));return true}}registerProcessor('mic',M)";
+function down16(buf, rate) {
+  if (rate === 16000) return buf;
+  const r = rate / 16000, n = Math.floor(buf.length / r), o = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const a = Math.floor(i * r), b = Math.max(a + 1, Math.floor((i + 1) * r)); let s = 0; for (let j = a; j < b; j++) s += buf[j]; o[i] = s / (b - a); }
+  return o;
+}
+function pcmB64(f32) {
+  const i16 = new Int16Array(f32.length);
+  for (let i = 0; i < f32.length; i++) { const v = Math.max(-1, Math.min(1, f32[i])); i16[i] = v < 0 ? v * 32768 : v * 32767; }
+  const u = new Uint8Array(i16.buffer); let s = "";
+  for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function playPcm(b64) {
+  const bin = atob(b64), n = bin.length >> 1;
+  if (!n) return;
+  const buf = L.outCtx.createBuffer(1, n, 24000), ch = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; ch[i] = v / 32768; }
+  const src = L.outCtx.createBufferSource(); src.buffer = buf; src.connect(L.outCtx.destination);
+  const at = Math.max(L.outCtx.currentTime + 0.03, L.playT); src.start(at); L.playT = at + buf.duration;
+  L.srcs.push(src); src.onended = () => { L.srcs = L.srcs.filter((x) => x !== src); if (!L.srcs.length) setState("listen"); };
+  setState("talk");
+}
+function stopPlayback() { L.srcs.forEach((s) => { try { s.stop(); } catch {} }); L.srcs = []; L.playT = 0; }
+function setState(st) {
+  const o = $("#orb"), h = $("#lst"); if (!o) return;
+  o.className = "orb " + (st === "talk" ? "talk" : st === "listen" ? "listen" : "");
+  h.textContent = st === "talk" ? t("speaking") : st === "listen" ? t("listening") : t("connecting");
+}
+function addLine(role, text) {
+  if (!text) return;
+  if (!L.cur || L.cur.r !== role) { L.cur = { r: role, x: "" }; L.log.push(L.cur); }
+  L.cur.x += text;
+  const box = $("#ltx"); if (!box) return;
+  box.innerHTML = L.log.slice(-14).map((m) => `<p class="${m.r === "u" ? "u" : ""}">${m.r === "u" ? "🧑 " : "👨‍🏫 "}${esc(m.x)}</p>`).join("");
+  box.scrollTop = box.scrollHeight;
+}
+function wsSend(o) { if (L.ws && L.ws.readyState === 1) L.ws.send(JSON.stringify(o)); }
+async function startMic() {
+  L.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+  L.inCtx = new (window.AudioContext || window.webkitAudioContext)();
+  await L.inCtx.resume();
+  const srcNode = L.inCtx.createMediaStreamSource(L.stream);
+  let acc = [], accN = 0;
+  const onPcm = (f) => {
+    if (L.muted || !L.ready) return;
+    const d = down16(f, L.inCtx.sampleRate); acc.push(d); accN += d.length;
+    if (accN >= 1600) { const all = new Float32Array(accN); let o = 0; for (const a of acc) { all.set(a, o); o += a.length; } acc = []; accN = 0;
+      wsSend({ realtimeInput: { audio: { data: pcmB64(all), mimeType: "audio/pcm;rate=16000" } } }); }
+  };
+  let worklet = false;
+  if (L.inCtx.audioWorklet) {
+    try {
+      await L.inCtx.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" })));
+      L.node = new AudioWorkletNode(L.inCtx, "mic"); L.node.port.onmessage = (e) => onPcm(e.data);
+      srcNode.connect(L.node); worklet = true;
+    } catch (e) { console.log("worklet", e && e.message); }
+  }
+  if (!worklet) {
+    L.node = L.inCtx.createScriptProcessor(4096, 1, 1); L.node.onaudioprocess = (e) => onPcm(e.inputBuffer.getChannelData(0).slice(0));
+    srcNode.connect(L.node); L.node.connect(L.inCtx.destination);
+  }
+}
+function cleanupLive() {
+  clearInterval(L.timer); L.ready = false;
+  try { L.ws && L.ws.close(); } catch {}
+  try { L.stream && L.stream.getTracks().forEach((x) => x.stop()); } catch {}
+  try { L.inCtx && L.inCtx.close(); } catch {}
+  stopPlayback();
+  try { L.outCtx && L.outCtx.close(); } catch {}
+  L.ws = L.inCtx = L.outCtx = L.stream = L.node = null;
+  try { tg?.disableClosingConfirmation(); } catch {}
+}
+async function endLive(silent) {
+  if (L.ended) return; L.ended = true;
+  cleanupLive();
+  const transcript = L.log.filter((m) => m.x.trim()).map((m) => ({ r: m.r, x: m.x.trim() }));
+  V.innerHTML = `<div class="ok"><b>⏳</b></div>`;
+  try { await api("live_end", { course_id: L.course, transcript, secs: Math.round((Date.now() - L.t0) / 1000) }); } catch {}
+  if (silent) return;
+  done(t("liveDone"));
+}
+function connectLive(info) {
+  return new Promise((resolve) => {
+    let ok = false;
+    const ws = new WebSocket(info.ws); L.ws = ws;
+    ws.onopen = () => ws.send(JSON.stringify({ setup: { model: info.model } }));
+    ws.onmessage = async (ev) => {
+      let m; try { m = JSON.parse(typeof ev.data === "string" ? ev.data : await ev.data.text()); } catch { return; }
+      if (m.setupComplete) { ok = true; L.ready = true; resolve(true); wsSend({ realtimeInput: { text: "(The call has started. Greet the student and begin the lesson.)" } }); return; }
+      const sc = m.serverContent; if (!sc) { if (m.goAway) endLive(); return; }
+      if (sc.interrupted) { stopPlayback(); setState("listen"); }
+      for (const p of sc.modelTurn?.parts ?? []) if (p.inlineData?.data) playPcm(p.inlineData.data);
+      if (sc.inputTranscription?.text) addLine("u", sc.inputTranscription.text);
+      if (sc.outputTranscription?.text) addLine("t", sc.outputTranscription.text);
+      if (sc.turnComplete) L.cur = null;
+    };
+    ws.onclose = (e) => { if (!ok) { console.log("live close", e.code, e.reason); resolve(e.reason || String(e.code)); } else if (!L.ended) endLive(); };
+    ws.onerror = () => {};
+  });
+}
+async function liveLesson(id) {
+  haptic();
+  Object.assign(L, { log: [], cur: null, ended: false, ready: false, warned: false, course: id, muted: false });
+  V.innerHTML = `<div class="live"><div class="orb" id="orb"></div><h2 id="lst">${t("connecting")}</h2><div class="hint" id="ltm">00:00</div>
+    <div class="ltx" id="ltx"></div>
+    <div class="callbar"><button id="lmute">${t("mic")}</button><button id="lend" class="red">${t("endCall")}</button></div></div>`;
+  $("#lend").onclick = () => { haptic(); endLive(); };
+  $("#lmute").onclick = () => { L.muted = !L.muted; $("#lmute").textContent = L.muted ? t("micOff") : t("mic"); $("#lmute").className = L.muted ? "off" : ""; };
+  try { tg?.enableClosingConfirmation(); tg?.disableVerticalSwipes?.(); } catch {}
+  L.outCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try { await L.outCtx.resume(); } catch {}
+  if (!navigator.mediaDevices?.getUserMedia) { cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><button class="btn" onclick="go('tutor')">${t("back")}</button></div>`; }
+  try { await startMic(); } catch (e) { console.log("mic", e && (e.name + ": " + e.message)); cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><p class="hint">${esc(e && e.name || "")}</p><button class="btn" onclick="go('tutor')">${t("back")}</button></div>`; }
+  let why = "";
+  for (let alt = 0; alt < 3 && !L.ended; alt++) {
+    let info;
+    try { info = await api("live_start", { course_id: id, alt }); } catch (e) {
+      const m = String(e.message);
+      cleanupLive(); L.ended = true;
+      const msg = m === "limit" ? t("liveLimit") : m === "busy" ? t("busy") : t("liveErr");
+      return V.innerHTML = `<div class="ok"><b>${m === "limit" ? "📚" : "⚠️"}</b><h2>${esc(msg)}</h2>${m === "limit" ? `<button class="btn" onclick="link('premium')">💎 Premium</button>` : ""}<button class="btn ghost" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+    }
+    L.max = info.max_sec || 900;
+    const r = await connectLive(info);
+    if (r === true) {
+      L.t0 = Date.now(); setState("listen");
+      L.timer = setInterval(() => {
+        const s = Math.floor((Date.now() - L.t0) / 1000), el = $("#ltm");
+        if (el) el.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")} / ${Math.floor(L.max / 60)}:00`;
+        if (!L.warned && s > L.max - 90) { L.warned = true; wsSend({ realtimeInput: { text: "(Note for the teacher: about one minute left. Wrap up now with a short summary and say the homework.)" } }); }
+        if (s >= L.max - 5) endLive();
+      }, 1000);
+      return;
+    }
+    why = r;
+  }
+  cleanupLive(); L.ended = true;
+  V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("liveErr")}</h2><p class="hint">${esc(why)}</p><button class="btn" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+}
 function profile() {
   const roles = [["student", "🎓 Talaba"], ["applicant", "📝 Abituriyent"], ["teacher", "👩‍🏫 O'qituvchi"], ["user", "👤 Boshqa"]];
   V.innerHTML = `<div class="top"><div class="ava">${esc((ME.name || "G")[0])}</div><div><h1>${esc(ME.name || "")}</h1>
@@ -169,6 +335,7 @@ function profile() {
   };
 }
 function go(tab) {
+  if (L.ws && !L.ended) endLive(true);
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
   ({ home, tutor, profile })[tab]();
   window.scrollTo(0, 0);
