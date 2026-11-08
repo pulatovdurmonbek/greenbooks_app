@@ -34,6 +34,10 @@ nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg);bor
 nav button{flex:1;border:0;background:none;color:var(--hint);font:12px inherit;padding:6px 0;cursor:pointer}nav button b{display:block;font-size:20px}
 nav button.on{color:var(--acc)}
 .back{border:0;background:none;color:var(--acc);font:inherit;padding:0;margin-bottom:8px;cursor:pointer}
+.incall{text-align:center;padding:56px 10px 20px}.incall .ring{width:120px;height:120px;border-radius:50%;margin:0 auto 22px;display:flex;align-items:center;justify-content:center;font-size:56px;background:var(--bg2);animation:ring 1.2s ease-in-out infinite}
+@keyframes ring{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.55)}50%{box-shadow:0 0 0 22px rgba(46,204,113,0)}}
+.incall .cbtns{display:flex;justify-content:space-around;margin-top:46px}.incall .cbtns button{width:76px;height:76px;border-radius:50%;border:0;font-size:32px;color:#fff;cursor:pointer}
+.incall .cbtns .acc{background:#2ecc71}.incall .cbtns .dec{background:#e74c3c}.incall .cbtns small{display:block;margin-top:8px;font-size:13px;color:var(--tx)}
 .ok{text-align:center;padding:40px 10px}.ok b{font-size:44px;display:block}
 .course{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:8px}.course .acts{display:flex;gap:8px;margin-top:10px}
 .course .acts button{flex:1;border:0;border-radius:10px;padding:11px 6px;font:600 14px inherit;cursor:pointer;background:var(--bg);color:var(--tx)}.course .acts .go{background:var(--btn);color:var(--btx)}
@@ -336,7 +340,45 @@ function profile() {
     try { await api("role", { role: b.dataset.v }); ME.role = b.dataset.v; toast("✅"); } catch { toast(t("err")); }
   };
 }
+// 📞 ustoz qo'ng'irog'i (bot xabaridagi "Javob berish" tugmasi: #call=<kurs id>)
+const CALL = Number((location.hash.match(/call=(\d+)/) || [])[1]) || 0;
+const TT = (uz, ru, en) => (LANG === "ru" ? ru : LANG === "en" ? en : uz);
+const RING = { ctx: null, t: null };
+function stopRing() { clearInterval(RING.t); RING.t = null; try { RING.ctx && RING.ctx.close(); } catch {} RING.ctx = null; }
+function startRing() {
+  try {
+    RING.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = () => {
+      const c = RING.ctx; if (!c) return;
+      [0, 0.45].forEach((d) => {
+        const o = c.createOscillator(), g = c.createGain();
+        o.frequency.value = 880; g.gain.setValueAtTime(0, c.currentTime + d);
+        g.gain.linearRampToValueAtTime(0.18, c.currentTime + d + 0.03); g.gain.linearRampToValueAtTime(0, c.currentTime + d + 0.35);
+        o.connect(g).connect(c.destination); o.start(c.currentTime + d); o.stop(c.currentTime + d + 0.4);
+      });
+      try { tg?.HapticFeedback?.notificationOccurred("warning"); } catch {}
+    };
+    beep(); RING.t = setInterval(beep, 2200);
+  } catch {}
+}
+function incoming(id) {
+  const c = (ME.courses || []).find((x) => Number(x.id) === id);
+  document.querySelectorAll("nav button").forEach((b) => b.classList.remove("on"));
+  V.innerHTML = `<div class="incall"><div class="ring">👨‍🏫</div><h2>${TT("Ustoz qo'ng'iroq qilyapti", "Звонит учитель", "Your teacher is calling")}</h2>
+    <div class="hint">${esc(c ? c.subject : "")}</div><p class="hint">${TT("Jonli ovozli dars — mikrofon kerak bo'ladi.", "Живой голосовой урок — нужен микрофон.", "Live voice lesson — microphone needed.")}</p>
+    <div class="cbtns"><div><button class="dec" id="cdec">✖</button><small>${TT("Keyinroq", "Позже", "Later")}</small></div>
+    <div><button class="acc" id="cacc">📞</button><small>${TT("Javob berish", "Ответить", "Answer")}</small></div></div></div>`;
+  startRing();
+  $("#cacc").onclick = () => { stopRing(); liveLesson(id); };
+  $("#cdec").onclick = async () => {
+    stopRing(); haptic();
+    try { await api("call_decline", { course_id: id }); } catch {}
+    V.innerHTML = `<div class="ok"><b>⏰</b><h2>${TT("Chatda ustozga sababini ayting", "Скажите учителю причину в чате", "Tell your teacher the reason in the chat")}</h2></div>`;
+    setTimeout(() => { try { tg.close(); } catch {} }, 1200);
+  };
+}
 function go(tab) {
+  stopRing();
   if (L.ws && !L.ended) endLive(true);
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
   ({ home, tutor, profile })[tab]();
@@ -349,7 +391,7 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { hapti
   const uid = tg.initDataUnsafe?.user?.id || 0, CK = "gb_me_" + uid;
   const apply = (m) => { ME = m; LANG = ME.lang || "uz"; document.querySelectorAll("[data-i]").forEach((el) => el.textContent = t(el.dataset.i)); };
   let shown = false;
-  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c && c.sections) { apply(c); go("home"); shown = true; } } catch {}
+  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c && c.sections) { apply(c); CALL ? incoming(CALL) : go("home"); shown = true; } } catch {}
   if (!shown) V.innerHTML = `<div class="ok"><b>📗</b><p class="hint">…</p></div>`;
   try {
     const fresh = await api("me");
@@ -357,7 +399,8 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { hapti
     const onHome = !shown || document.querySelector("nav button.on")?.dataset.t === "home";
     const onTutor = document.querySelector("nav button.on")?.dataset.t === "tutor" && !L.ws && !document.getElementById("subj")?.value;
     apply(fresh);
-    if (onHome && !document.querySelector(".back")) go("home"); else if (onTutor) go("tutor");
+    if (CALL) { if (!shown) incoming(CALL); }
+    else if (onHome && !document.querySelector(".back")) go("home"); else if (onTutor) go("tutor");
   } catch (e) { if (!shown) V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("err")}</h2><button class="btn" onclick="location.reload()">↻</button></div>`; }
 })();
 </script>
