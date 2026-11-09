@@ -47,6 +47,9 @@ nav button.on{color:var(--acc)}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,160,107,.55);transform:scale(1)}70%{box-shadow:0 0 0 26px rgba(34,160,107,0);transform:scale(1.05)}100%{box-shadow:0 0 0 0 rgba(34,160,107,0);transform:scale(1)}}
 .ltx{width:100%;text-align:left;max-height:34vh;overflow-y:auto;background:var(--card);border-radius:14px;padding:10px 12px;margin-top:12px;font-size:14px}
 .ltx p{margin:4px 0}.ltx .u{color:var(--hint)}
+.board{width:100%;text-align:left;background:#1f3d2b;color:#f4f1e6;border:6px solid #6b4f2a;border-radius:12px;padding:10px 14px;margin-top:10px;max-height:40vh;overflow-y:auto;font:16px/1.5 "Comic Sans MS","Segoe Print",system-ui,sans-serif;box-shadow:inset 0 0 30px rgba(0,0,0,.35)}
+.board .bt{font-weight:700;font-size:17px;border-bottom:1px dashed rgba(255,255,255,.35);margin-bottom:6px;padding-bottom:4px}
+.board p{margin:5px 0}.board .katex{color:#fff;font-size:1.08em}.board .nb{font-size:12px;opacity:.75;margin-top:6px}
 .callbar{display:flex;gap:10px;width:100%;margin-top:14px}.callbar button{flex:1;border:0;border-radius:14px;padding:15px;font:600 15px inherit;cursor:pointer;background:var(--card);color:var(--tx)}
 .callbar .red{background:#e5484d;color:#fff}.callbar .off{background:#555;color:#fff}
 .toast{position:fixed;left:14px;right:14px;bottom:80px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:9}
@@ -156,6 +159,7 @@ function tutor() {
   V.innerHTML = `<h1>👨‍🏫 Ustoz AI</h1><p class="hint">${t("tutorIntro")}</p>
     ${cs.length ? `<h2>${t("courses")}</h2><div class="list">${cs.map((c) => `<div class="course"><b>${esc(c.subject)}</b><br><small class="hint">${c.day_index}/${c.total || "…"} · ${c.lesson_time || "—"}</small>
       <div class="acts"><button class="go" onclick="liveLesson(${c.id})">${t("live")}</button><button onclick="startLesson(${c.id})">${t("chat")}</button></div></div>`).join("")}<p class="hint">🎧 ${t("liveHint")}</p></div>` : ""}
+    <button class="btn ghost" onclick="parentView()">👪 ${TT("Ota-ona: ustoz ota-onangizga qo'ng'iroq qiladi", "Родители: учитель звонит родителям", "Parents: the teacher calls your parent")}</button>
     <h2>${t("newCourse")}</h2>
     <label>${t("subject")}</label><input id="subj" list="subjs" placeholder="Ingliz tili"><datalist id="subjs">${["Ingliz tili","Rus tili","Koreys tili","Nemis tili","Matematika","Fizika","Kimyo","Biologiya","Tarix","Ona tili va adabiyot","Dasturlash"].map((x) => `<option value="${x}">`).join("")}</datalist>
     <label>${t("tlang")}</label>${SEG("lang", [["uz", "🇺🇿 O'zbekcha"], ["ru", "🇷🇺 Русский"], ["en", "🇬🇧 English"], ["ko", "🇰🇷 한국어"]], ["uz", "ru", "en", "ko"].includes(LANG) ? LANG : "uz")}
@@ -204,6 +208,8 @@ function pcmB64(f32) {
 function playPcm(b64) {
   const bin = atob(b64), n = bin.length >> 1;
   if (!n) return;
+  L.gotAudio = true;
+  if (L.outCtx.state === "suspended") L.outCtx.resume().catch(() => {});
   const buf = L.outCtx.createBuffer(1, n, 24000), ch = buf.getChannelData(0);
   for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v >= 32768) v -= 65536; ch[i] = v / 32768; }
   const src = L.outCtx.createBufferSource(); src.buffer = buf; src.connect(L.outCtx.destination);
@@ -211,6 +217,40 @@ function playPcm(b64) {
   L.srcs.push(src); src.onended = () => { L.srcs = L.srcs.filter((x) => x !== src); if (!L.srcs.length) setState("listen"); };
   setState("talk");
 }
+// 📋 Doska: ustoz (Gemini Live write_board vositasi) mavzu, qoida va formulalarni yozadi; formulalar KaTeX bilan
+let KATEX = null;
+function loadKatex() {
+  if (KATEX) return KATEX;
+  KATEX = new Promise((res) => {
+    const l = document.createElement("link"); l.rel = "stylesheet"; l.href = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.css"; document.head.appendChild(l);
+    const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.11/katex.min.js";
+    sc.onload = () => res(window.katex); sc.onerror = () => res(null); document.head.appendChild(sc);
+    setTimeout(() => res(window.katex || null), 6000);
+  });
+  return KATEX;
+}
+function mathLine(line, k) {
+  return String(line).split(/(\$[^$]+\$)/g).map((part) => {
+    if (k && /^\$[^$]+\$$/.test(part)) { try { return k.renderToString(part.slice(1, -1), { throwOnError: false }); } catch { return esc(part); } }
+    return esc(part);
+  }).join("");
+}
+async function boardWrite(a) {
+  const lines = (Array.isArray(a.lines) ? a.lines : [String(a.lines || "")]).map((x) => String(x)).filter((x) => x.trim()).slice(0, 30);
+  if (a.clear || !L.board) L.board = { title: "", lines: [] };
+  if (a.title) L.board.title = String(a.title);
+  L.board.lines.push(...lines);
+  L.board.lines = L.board.lines.slice(-40);
+  L.log.push({ r: "b", x: `[BOARD] ${L.board.title ? L.board.title + ": " : ""}${lines.join(" | ")}` }); L.cur = null;
+  const k = await loadKatex();
+  const el = $("#board"); if (!el) return;
+  el.hidden = false;
+  el.innerHTML = `${L.board.title ? `<div class="bt">${mathLine(L.board.title, k)}</div>` : ""}${L.board.lines.map((x) => `<p>${mathLine(x, k)}</p>`).join("")}<div class="nb">✍️ ${TT("Daftaringizga yozib oling", "Запишите в тетрадь", "Copy it into your notebook")}</div>`;
+  el.scrollTop = el.scrollHeight;
+  haptic();
+}
+function kick(text) { wsSend({ clientContent: { turns: [{ role: "user", parts: [{ text }] }], turnComplete: true } }); }
+const KICK = "(The call has started. Greet the student and begin the lesson.)";
 function stopPlayback() { L.srcs.forEach((s) => { try { s.stop(); } catch {} }); L.srcs = []; L.playT = 0; }
 function setState(st) {
   const o = $("#orb"), h = $("#lst"); if (!o) return;
@@ -252,7 +292,7 @@ async function startMic() {
   }
 }
 function cleanupLive() {
-  clearInterval(L.timer); L.ready = false;
+  clearInterval(L.timer); clearTimeout(L.wd); L.ready = false;
   try { L.ws && L.ws.close(); } catch {}
   try { L.stream && L.stream.getTracks().forEach((x) => x.stop()); } catch {}
   try { L.inCtx && L.inCtx.close(); } catch {}
@@ -277,22 +317,64 @@ function connectLive(info) {
     ws.onopen = () => ws.send(JSON.stringify({ setup: info.setup || { model: info.model } }));
     ws.onmessage = async (ev) => {
       let m; try { m = JSON.parse(typeof ev.data === "string" ? ev.data : await ev.data.text()); } catch { return; }
-      if (m.setupComplete) { ok = true; L.ready = true; resolve(true); wsSend({ realtimeInput: { text: "(The call has started. Greet the student and begin the lesson.)" } }); return; }
-      const sc = m.serverContent; if (!sc) { if (m.goAway) endLive(); return; }
+      if (m.setupComplete) {
+        ok = true; L.ready = true; L.gotAudio = false; L.kicked2 = false; resolve(true);
+        kick(L.resumeText || KICK);
+        clearTimeout(L.wd); L.wd = setTimeout(wdCheck, 8000);
+        return;
+      }
+      if (m.toolCall) {
+        const resp = [];
+        for (const f of m.toolCall.functionCalls || []) {
+          if (f.name === "write_board") { boardWrite(f.args || {}); resp.push({ id: f.id, name: f.name, response: { result: "written on the board; tell the student to copy it into the notebook" } }); }
+          else resp.push({ id: f.id, name: f.name, response: { result: "ok" } });
+        }
+        wsSend({ toolResponse: { functionResponses: resp } });
+        return;
+      }
+      const sc = m.serverContent; if (!sc) { if (m.goAway) reconnect("goAway"); return; }
       if (sc.interrupted) { stopPlayback(); setState("listen"); }
       for (const p of sc.modelTurn?.parts ?? []) if (p.inlineData?.data) playPcm(p.inlineData.data);
       if (sc.inputTranscription?.text) addLine("u", sc.inputTranscription.text);
       if (sc.outputTranscription?.text) addLine("t", sc.outputTranscription.text);
       if (sc.turnComplete) L.cur = null;
     };
-    ws.onclose = (e) => { if (!ok) { console.log("live close", e.code, e.reason); resolve(e.reason || String(e.code)); } else if (!L.ended) endLive(); };
+    ws.onclose = (e) => { if (L.ws !== ws) return; if (!ok) { console.log("live close", e.code, e.reason); resolve(e.reason || String(e.code)); } else if (!L.ended) reconnect("close " + e.code); };
     ws.onerror = () => {};
   });
 }
+// ustoz gapirmay "tinglamoqda"da qolib ketsa: avval qayta turtamiz, keyin boshqa modelga qayta ulanamiz
+function wdCheck() {
+  if (L.ended || L.gotAudio || L.reconnecting) return;
+  if (!L.kicked2) { L.kicked2 = true; kick(L.resumeText || KICK); L.wd = setTimeout(wdCheck, 8000); return; }
+  L.alt = (L.alt || 0) + 1; reconnect("no audio");
+}
+async function reconnect(why) {
+  if (L.ended || L.reconnecting) return;
+  console.log("reconnect", why);
+  L.reconnecting = true; L.ready = false; clearTimeout(L.wd); stopPlayback(); setState("");
+  const old = L.ws; L.ws = null; try { old && old.close(); } catch {}
+  const recent = L.log.filter((m) => m.x.trim()).slice(-10).map((m) => `${m.r === "u" ? "STUDENT" : "TEACHER"}: ${m.x.trim().slice(0, 300)}`).join("\n");
+  L.resumeText = L.log.length
+    ? `(The connection was restored after a short break. Continue the lesson exactly from where you stopped — do not greet again and do not start over. Recent conversation:\n${recent})`
+    : KICK;
+  for (let i = 0; i < 3 && !L.ended; i++) {
+    L.rc = (L.rc || 0) + 1;
+    if (L.rc > 6) break;
+    let info; try { info = await api("live_start", { course_id: L.course, alt: Math.min(2, L.alt || 0) }); } catch { L.alt = (L.alt || 0) + 1; continue; }
+    const r = await connectLive(info);
+    if (r === true) { L.reconnecting = false; setState("listen"); return; }
+    L.alt = (L.alt || 0) + 1;
+  }
+  L.reconnecting = false;
+  if (!L.ended) endLive();
+}
 async function liveLesson(id) {
   haptic();
-  Object.assign(L, { log: [], cur: null, ended: false, ready: false, warned: false, course: id, muted: false });
+  Object.assign(L, { log: [], cur: null, ended: false, ready: false, warned: false, course: id, muted: false, board: null, alt: 0, rc: 0, resumeText: "", reconnecting: false, nextNote: 180 });
+  loadKatex();
   V.innerHTML = `<div class="live"><div class="orb" id="orb"></div><h2 id="lst">${t("connecting")}</h2><div class="hint" id="ltm">00:00</div>
+    <div class="board" id="board" hidden></div>
     <div class="ltx" id="ltx"></div>
     <div class="callbar"><button id="lmute">${t("mic")}</button><button id="lend" class="red">${t("endCall")}</button></div></div>`;
   $("#lend").onclick = () => { haptic(); endLive(); };
@@ -304,6 +386,7 @@ async function liveLesson(id) {
   try { await startMic(); } catch (e) { console.log("mic", e && (e.name + ": " + e.message)); cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><p class="hint">${esc(e && e.name || "")}</p><button class="btn" onclick="go('tutor')">${t("back")}</button></div>`; }
   let why = "";
   for (let alt = 0; alt < 3 && !L.ended; alt++) {
+    L.alt = alt;
     let info;
     try { info = await api("live_start", { course_id: id, alt }); } catch (e) {
       const m = String(e.message), det = e.detail || "";
@@ -318,7 +401,8 @@ async function liveLesson(id) {
       L.timer = setInterval(() => {
         const s = Math.floor((Date.now() - L.t0) / 1000), el = $("#ltm");
         if (el) el.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")} / ${Math.floor(L.max / 60)}:00`;
-        if (!L.warned && s > L.max - 90) { L.warned = true; wsSend({ realtimeInput: { text: "(Note for the teacher: about one minute left. Wrap up now with a short summary and say the homework.)" } }); }
+        if (L.ready && s > L.nextNote && s < L.max - 120) { L.nextNote += 180; wsSend({ realtimeInput: { text: `(Time: ${Math.floor(s / 60)} of ${Math.floor(L.max / 60)} min. Keep teaching — do not wrap up yet.)` } }); }
+        if (!L.warned && s > L.max - 90) { L.warned = true; wsSend({ realtimeInput: { text: "(Time: about one minute left. Wrap up now: short summary, say the homework and write it on the board, then goodbye.)" } }); }
         if (s >= L.max - 5) endLive();
       }, 1000);
       return;
@@ -327,6 +411,42 @@ async function liveLesson(id) {
   }
   cleanupLive(); L.ended = true;
   V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("liveErr")}</h2><p class="hint">${esc(why)}</p><button class="btn" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+}
+// 👪 Ota-ona: ism, telefon, Telegram username — ustoz shular orqali qo'ng'iroq qiladi
+async function parentView() {
+  haptic();
+  V.innerHTML = `<div class="ok"><b>⏳</b></div>`;
+  let p = {};
+  try { p = (await api("parent_get")).parent || {}; } catch {}
+  const LG = [["uz", "🇺🇿 O'zbekcha"], ["ru", "🇷🇺 Русский"], ["en", "🇬🇧 English"], ["ko", "🇰🇷 한국어"]];
+  V.innerHTML = `<button class="back" onclick="go('tutor')">${t("back")}</button><h1>👪 ${TT("Ota-ona", "Родители", "Parents")}</h1>
+    <p class="hint">${TT("Darsga kirmasangiz yoki uy vazifasini bajarmasangiz, ustoz ota-onangizga Telegram'dan qo'ng'iroq qilib aytadi; yaxshi o'qisangiz — maqtaydi va ota-onangiz savollariga javob beradi.",
+      "Если вы пропускаете уроки или не делаете ДЗ, учитель позвонит родителям в Telegram; если учитесь хорошо — похвалит и ответит на их вопросы.",
+      "If you miss lessons or skip homework, the teacher calls your parent on Telegram; if you do well — praises you and answers their questions.")}</p>
+    <label>${TT("Kim va ismi (masalan: Dadam — Akmal aka)", "Кто и имя (например: Папа — Акмал)", "Who and name (e.g. Dad — Akmal)")}</label><input id="pn" value="${esc(p.name || "")}">
+    <label>${TT("Telefon raqami", "Номер телефона", "Phone number")}</label><input id="pp" type="tel" placeholder="+998901234567" value="${esc(p.phone || "")}">
+    <label>${TT("Telegram username", "Username в Telegram", "Telegram username")}</label><input id="pu" placeholder="@username" value="${esc(p.username ? "@" + p.username : "")}">
+    <label>${TT("Qaysi tilda gaplashsin", "Язык разговора", "Language")}</label>${SEG("plang", LG, p.lang || (["uz", "ru", "en", "ko"].includes(LANG) ? LANG : "uz"))}
+    <label>${TT("Qo'ng'iroqlar", "Звонки", "Calls")}</label>${SEG("pon", [["1", "🔔 " + TT("Yoqilgan", "Вкл", "On")], ["0", "🔕 " + TT("O'chirilgan", "Выкл", "Off")]], p.call_on === false ? "0" : "1")}
+    <button class="btn" id="psave">${TT("Saqlash", "Сохранить", "Save")}</button>
+    ${p.user_id ? `<button class="btn ghost" id="pcall">📞 ${TT("Hozir ota-onamga qo'ng'iroq qilsin", "Позвонить родителю сейчас", "Call my parent now")}</button>` : ""}`;
+  document.querySelectorAll(".seg").forEach((sg) => sg.onclick = (e) => {
+    const b = e.target.closest("button"); if (!b) return; haptic();
+    sg.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  });
+  const v = (n) => document.querySelector(`.seg[data-n="${n}"] .on`)?.dataset.v;
+  $("#psave").onclick = async () => {
+    $("#psave").disabled = true;
+    try {
+      await api("parent_save", { name: $("#pn").value, phone: $("#pp").value, username: $("#pu").value, lang: v("plang"), call_on: v("pon") === "1" });
+      toast("✅"); parentView();
+    } catch (e) {
+      $("#psave").disabled = false;
+      toast(e.message === "contact" ? TT("Telefon raqami yoki username kerak", "Нужен номер или username", "Phone or username required")
+        : e.message === "phone" ? TT("Raqam noto'g'ri", "Неверный номер", "Invalid number") : e.message === "username" ? TT("Username noto'g'ri", "Неверный username", "Invalid username") : t("err"));
+    }
+  };
+  if ($("#pcall")) $("#pcall").onclick = async () => { try { await api("parent_call"); done(TT("Ustoz ota-onangizga qo'ng'iroq qilyapti", "Учитель звонит родителю", "The teacher is calling your parent")); } catch { toast(t("err")); } };
 }
 function profile() {
   const roles = [["student", "🎓 Talaba"], ["applicant", "📝 Abituriyent"], ["teacher", "👩‍🏫 O'qituvchi"], ["user", "👤 Boshqa"]];
