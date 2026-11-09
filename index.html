@@ -52,6 +52,26 @@ nav button.on{color:var(--acc)}
 .board p{margin:5px 0}.board .katex{color:#fff;font-size:1.08em}.board .nb{font-size:12px;opacity:.75;margin-top:6px}
 .callbar{display:flex;gap:10px;width:100%;margin-top:14px}.callbar button{flex:1;border:0;border-radius:14px;padding:15px;font:600 15px inherit;cursor:pointer;background:var(--card);color:var(--tx)}
 .callbar .red{background:#e5484d;color:#fff}.callbar .off{background:#555;color:#fff}
+.chat{display:flex;flex-direction:column;gap:8px;padding-bottom:118px}
+.msg{max-width:88%;padding:9px 12px;border-radius:16px;background:var(--card);white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere;font-size:15px}
+.msg.me{align-self:flex-end;background:var(--btn);color:var(--btx);border-bottom-right-radius:6px}.msg.bot{align-self:flex-start;border-bottom-left-radius:6px}
+.msg blockquote{margin:6px 0;padding:4px 10px;border-left:3px solid var(--acc);background:rgba(127,127,127,.08);border-radius:6px}
+.msg pre,.msg code{font-family:ui-monospace,Menlo,monospace;font-size:13px;background:rgba(127,127,127,.12);border-radius:6px;padding:1px 4px}.msg pre{padding:8px;white-space:pre-wrap}
+.msg .sp{filter:blur(5px);cursor:pointer;transition:.2s}.msg .sp.open{filter:none}.msg a{color:var(--acc)}
+.kbd{display:flex;flex-direction:column;gap:5px;margin-top:8px}.kbd div{display:flex;gap:5px}
+.kbd button{flex:1;border:1px solid var(--line);background:var(--bg);color:var(--acc);border-radius:10px;padding:9px 6px;font:600 13px inherit;cursor:pointer}
+.att{display:flex;align-items:center;gap:8px;margin-top:6px;background:rgba(127,127,127,.1);border-radius:10px;padding:8px}.att b{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis}
+.att button{border:0;background:var(--btn);color:var(--btx);border-radius:8px;padding:7px 10px;font:600 13px inherit;cursor:pointer}
+.msg img{max-width:100%;border-radius:10px;margin-top:6px}.msg audio{width:230px;max-width:100%;margin-top:6px}
+.typing{align-self:flex-start;color:var(--hint);font-size:13px;padding:2px 6px}
+.cin{position:fixed;left:0;right:0;bottom:calc(58px + env(safe-area-inset-bottom));background:var(--bg);border-top:1px solid var(--line);padding:6px 8px}
+.cin .row2{display:flex;gap:6px;align-items:flex-end}.cin textarea{min-height:42px;max-height:120px;padding:10px;border-radius:20px;flex:1}
+.cin .ib{flex:none;width:42px;height:42px;border-radius:50%;border:0;background:var(--card);font-size:19px;cursor:pointer}.cin .ib.send{background:var(--btn);color:var(--btx)}
+.cin .ib.rec{background:#e5484d;color:#fff;animation:pulse 1s infinite}
+.chips2{display:flex;gap:6px;overflow-x:auto;padding:0 0 6px}.chips2 button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--tx);border-radius:16px;padding:6px 11px;font:13px inherit;cursor:pointer;white-space:nowrap}
+.badge{display:inline-block;min-width:16px;padding:0 4px;border-radius:9px;background:#e5484d;color:#fff;font-size:10px;line-height:16px;margin-left:2px;vertical-align:top}
+.les{background:var(--card);border-radius:12px;padding:10px 12px;margin-bottom:6px;display:flex;gap:10px;align-items:flex-start}.les .tx{flex:1}.les small{color:var(--hint);display:block}
+.les button{border:0;background:none;font-size:18px;cursor:pointer;padding:2px 4px}
 .toast{position:fixed;left:14px;right:14px;bottom:80px;background:#222;color:#fff;padding:12px 14px;border-radius:12px;display:none;z-index:9}
 </style>
 </head>
@@ -59,6 +79,7 @@ nav button.on{color:var(--acc)}
 <div id="v"></div>
 <nav id="nav">
   <button data-t="home" class="on"><b>🏠</b><span data-i="home"></span></button>
+  <button data-t="chat"><b>💬</b><span>Chat</span><i class="badge" id="nb" hidden></i></button>
   <button data-t="tutor"><b>👨‍🏫</b><span>Ustoz AI</span></button>
   <button data-t="profile"><b>👤</b><span data-i="profile"></span></button>
 </nav>
@@ -112,7 +133,7 @@ async function api(action, body = {}) {
 }
 function haptic() { try { tg?.HapticFeedback?.impactOccurred("light"); } catch {} }
 function done(msg) {
-  V.innerHTML = `<div class="ok"><b>✅</b><h2>${esc(msg)}</h2><button class="btn" onclick="tg?.close()">${t("toChat")}</button><button class="btn ghost" onclick="go('home')">${t("back")}</button></div>`;
+  V.innerHTML = `<div class="ok"><b>✅</b><h2>${esc(msg)}</h2><button class="btn" onclick="go('chat')">💬 ${TT("Natijani ko'rish", "Смотреть результат", "See the result")}</button><button class="btn ghost" onclick="go('home')">${t("back")}</button></div>`;
   try { tg?.HapticFeedback?.notificationOccurred("success"); } catch {}
 }
 
@@ -137,7 +158,7 @@ function section(key) {
 }
 async function link(key) {
   haptic();
-  try { await api("link", { key }); done(t("openChat")); } catch { toast(t("err")); }
+  try { await api("link", { key }); go("chat"); } catch { toast(t("err")); }
 }
 function tool(id) {
   haptic();
@@ -150,7 +171,7 @@ function tool(id) {
     const text = $("#tx").value.trim();
     if (text.length < 2) return $("#tx").focus();
     $("#sb").disabled = true;
-    try { await api("tool", { tool: id, text }); done(t("sent")); } catch { $("#sb").disabled = false; toast(t("err")); }
+    try { await api("tool", { tool: id, text }); go("chat"); } catch { $("#sb").disabled = false; toast(t("err")); }
   };
 }
 const SEG = (name, opts, val) => `<div class="seg" data-n="${name}">${opts.map(([v, l]) => `<button data-v="${v}" class="${v === val ? "on" : ""}">${l}</button>`).join("")}</div>`;
@@ -158,7 +179,10 @@ function tutor() {
   const cs = ME.courses || [];
   V.innerHTML = `<h1>👨‍🏫 Ustoz AI</h1><p class="hint">${t("tutorIntro")}</p>
     ${cs.length ? `<h2>${t("courses")}</h2><div class="list">${cs.map((c) => `<div class="course"><b>${esc(c.subject)}</b><br><small class="hint">${c.day_index}/${c.total || "…"} · ${c.lesson_time || "—"}</small>
-      <div class="acts"><button class="go" onclick="liveLesson(${c.id})">${t("live")}</button><button onclick="startLesson(${c.id})">${t("chat")}</button></div></div>`).join("")}<p class="hint">🎧 ${t("liveHint")}</p></div>` : ""}
+      <div class="acts"><button class="go" onclick="liveLesson(${c.id})">${t("live")}</button><button onclick="pressGo('ut:start:${c.id}')">${t("chat")}</button></div>
+      <div class="acts"><button onclick="pressGo('uv:go:${c.id}')">🧠 ${TT("So'zlar", "Слова", "Words")}</button><button onclick="pressGo('ua:prof:${c.id}')">🎯 ${TT("Ko'nikma", "Навыки", "Skills")}</button><button onclick="pressGo('ua:diag:${c.id}')">🧪 ${TT("Test", "Тест", "Test")}</button></div>
+      ${LANGRE.test(c.subject) ? `<div class="acts"><button onclick="pressGo('upr:go:${c.id}')">🗣 ${TT("Talaffuz", "Произношение", "Pronunciation")}</button><button onclick="pressGo('ux:home')">📝 ${TT("Imtihon", "Экзамены", "Exams")}</button></div>` : ""}
+      <div class="acts"><button onclick="lessonsView(${c.id})">📋 ${TT("Darslar", "Уроки", "Lessons")}</button><button onclick="pressGo('ut:open:${c.id}')">⚙️</button><button onclick="delCourse(${c.id})">🗑</button></div></div>`).join("")}<p class="hint">🎧 ${t("liveHint")}</p></div>` : ""}
     <button class="btn ghost" onclick="parentView()">👪 ${TT("Ota-ona: ustoz ota-onangizga qo'ng'iroq qiladi", "Родители: учитель звонит родителям", "Parents: the teacher calls your parent")}</button>
     <h2>${t("newCourse")}</h2>
     <label>${t("subject")}</label><input id="subj" list="subjs" placeholder="Ingliz tili"><datalist id="subjs">${["Ingliz tili","Rus tili","Koreys tili","Nemis tili","Matematika","Fizika","Kimyo","Biologiya","Tarix","Ona tili va adabiyot","Dasturlash"].map((x) => `<option value="${x}">`).join("")}</datalist>
@@ -181,13 +205,13 @@ function tutor() {
     try {
       await api("tutor_new", { subject: $("#subj").value || "Ingliz tili", teacher_level: v("teacher_level"), teacher_style: v("teacher_style"),
         student_level: v("student_level"), lessons: v("lessons"), tz: v("tz"), lang: v("lang"), lesson_time: $("#tm").value || null, goal: $("#goal").value });
-      done(t("sent"));
+      go("chat");
     } catch { $("#cb").disabled = false; toast(t("err")); }
   };
 }
 async function startLesson(id) {
   haptic();
-  try { await api("tutor_start", { course_id: id }); done(t("openChat")); } catch { toast(t("err")); }
+  try { await api("tutor_start", { course_id: id }); go("chat"); } catch { toast(t("err")); }
 }
 // ------------------------------------------------------------------ 🎙 Jonli dars (Gemini Live, real vaqt)
 const L = { ws: null, inCtx: null, outCtx: null, stream: null, node: null, playT: 0, srcs: [], muted: false, log: [], cur: null, t0: 0, timer: null, course: 0, ended: false, ready: false, max: 900, warned: false };
@@ -477,6 +501,8 @@ function profile() {
   V.innerHTML = `<div class="top"><div class="ava">${esc((ME.name || "G")[0])}</div><div><h1>${esc(ME.name || "")}</h1>
     <div class="hint">${t("premium")}: ${ME.premium ? "💎 " + ME.premium : t("none")} · ⭐ Lv ${ME.level} · ${ME.xp} XP</div></div></div>
     <label>${t("role")}</label>${SEG("role", roles, ME.role)}
+    <button class="btn ghost" onclick="pressSay('/exam')">📝 ${TT("Imtihonga tayyorlov (TOPIK, IELTS, KIIP)", "Подготовка к экзаменам", "Exam preparation")}</button>
+    ${ME.admin ? `<button class="btn ghost" onclick="pressSay('/admin')">⚙️ ${TT("Admin panel", "Админ-панель", "Admin panel")}</button>` : ""}
     <button class="btn ghost" onclick="link('premium')">💎 Premium</button>
     <button class="btn ghost" onclick="link('help')">ℹ️ Yordam</button>`;
   document.querySelector(".seg").onclick = async (e) => {
@@ -519,8 +545,7 @@ function incoming(id) {
   $("#cdec").onclick = async () => {
     stopRing(); haptic();
     try { await api("call_decline", { course_id: id }); } catch {}
-    V.innerHTML = `<div class="ok"><b>⏰</b><h2>${TT("Chatda ustozga sababini ayting", "Скажите учителю причину в чате", "Tell your teacher the reason in the chat")}</h2></div>`;
-    setTimeout(() => { try { tg.close(); } catch {} }, 1200);
+    go("chat");
   };
 }
 function pincoming(id) {
@@ -533,11 +558,181 @@ function pincoming(id) {
   $("#cacc").onclick = () => { stopRing(); parentCall(id); };
   $("#cdec").onclick = () => { stopRing(); haptic(); try { tg.close(); } catch {} };
 }
+// ------------------------------------------------------------------ 💬 ilova ichidagi chat (botning hamma funksiyasi shu yerda)
+const LANGRE = /tili|language|язык|english|korean|ingliz|koreys|nemis|german|rus/i;
+const C = { rev: 0, items: new Map(), on: false, t: null, busy: false, last: 0, seen: 0, kb: null, typing: false, rec: null, recT0: 0, showKb: true };
+const TAGS = { B: "b", STRONG: "b", I: "i", EM: "i", U: "u", INS: "u", S: "s", STRIKE: "s", DEL: "s", CODE: "code", PRE: "pre", BLOCKQUOTE: "blockquote", A: "a", "TG-SPOILER": "sp", SPAN: "span", BR: "br" };
+function tgHtml(src) {
+  const doc = new DOMParser().parseFromString(`<div>${String(src || "")}</div>`, "text/html");
+  const walk = (n) => {
+    let o = "";
+    for (const c of n.childNodes) {
+      if (c.nodeType === 3) { o += esc(c.nodeValue); continue; }
+      if (c.nodeType !== 1) continue;
+      const tag = TAGS[c.tagName], inner = walk(c);
+      if (!tag) o += inner;
+      else if (tag === "br") o += "\n";
+      else if (tag === "a") { const h = c.getAttribute("href") || ""; o += /^(https?:|tg:)/i.test(h) ? `<a href="#" data-href="${esc(h)}">${inner}</a>` : inner; }
+      else if (tag === "sp" || (tag === "span" && c.classList.contains("tg-spoiler"))) o += `<span class="sp">${inner}</span>`;
+      else if (tag === "span") o += inner;
+      else o += `<${tag}>${inner}</${tag}>`;
+    }
+    return o;
+  };
+  return walk(doc.body.firstChild);
+}
+function kbHtml(m, msg) {
+  const rows = m && m.inline_keyboard; if (!rows || !rows.length) return "";
+  return `<div class="kbd">${rows.map((r) => `<div>${r.map((b) => {
+    const a = b.callback_data ? `data-cb="${esc(b.callback_data)}" data-m="${msg}"` : b.url ? `data-url="${esc(b.url)}"` : b.web_app ? `data-wa="${esc(b.web_app.url)}"` : b.copy_text ? `data-copy="${esc(b.copy_text.text)}"` : "";
+    return a ? `<button ${a}>${esc(b.text)}</button>` : "";
+  }).join("")}</div>`).join("")}</div>`;
+}
+function bubble(it) {
+  const me = String(it.kind).startsWith("you_"), k = me ? it.kind.slice(4) : it.kind;
+  let body = it.html ? (me ? esc(it.html) : tgHtml(it.html)) : "";
+  if (k === "doc" && it.url) body += `<div class="att">📄<b>${esc(it.name || "fayl")}</b><button data-dl="${esc(it.url)}" data-n="${esc(it.name || "fayl")}">⬇️</button></div>`;
+  if (k === "voice" && it.url) body = `<audio controls preload="none" src="${esc(it.url)}"></audio>` + (body ? `<div>${body}</div>` : "");
+  if (k === "photo" && it.url) body = `<img loading="lazy" src="${esc(it.url)}">` + (body ? `<div>${body}</div>` : "");
+  if (k === "invoice") body += `<div class="kbd"><div><button data-inv="${esc(it.invoice || "")}">💳 ${TT("To'lash", "Оплатить", "Pay")}</button></div></div>`;
+  return `<div class="msg ${me ? "me" : "bot"}" id="m${it.id}">${body}${me ? "" : kbHtml(it.markup, it.msg)}</div>`;
+}
+function renderChat(scroll) {
+  const box = $("#chat"); if (!box) return;
+  const list = [...C.items.values()].sort((a, b) => a.id - b.id);
+  box.innerHTML = list.length ? list.map(bubble).join("") + (C.typing ? `<div class="typing">✍️ …</div>` : "")
+    : `<div class="ok"><b>💬</b><p class="hint">${TT("Bu yerda bot bilan to'liq ishlaysiz: darslar, so'zlar, imtihonlar, hujjatlar. Yozing yoki pastdagi tugmalardan foydalaning.", "Здесь вся работа с ботом: уроки, слова, экзамены, документы.", "Everything the bot does works here: lessons, words, exams, documents.")}</p><button class="btn" onclick="pressSay('/start')">▶️ /start</button></div>`;
+  const chips = $("#chips");
+  if (chips) chips.innerHTML = C.showKb && C.kb ? C.kb.flat().map((b) => { const x = typeof b === "string" ? b : b.text; return `<button data-say="${esc(x)}">${esc(x)}</button>`; }).join("") : "";
+  if (scroll) window.scrollTo(0, document.body.scrollHeight);
+}
+function applyFeed(r) {
+  let fresh = false;
+  for (const it of r.items || []) {
+    if (it.deleted) { C.items.delete(it.id); continue; }
+    if (!C.items.has(it.id)) fresh = true;
+    C.items.set(it.id, it);
+  }
+  if (C.items.size > 150) [...C.items.keys()].sort((a, b) => a - b).slice(0, C.items.size - 150).forEach((k) => C.items.delete(k));
+  C.rev = Math.max(C.rev, r.rev || 0); C.kb = r.kb; C.typing = r.typing;
+  if (fresh) C.last = Date.now();
+  const nb = $("#nb"), unseen = [...C.items.values()].filter((x) => x.id > C.seen && !String(x.kind).startsWith("you_")).length;
+  if (C.on) { C.seen = Math.max(C.seen, ...C.items.keys(), 0); if (nb) nb.hidden = true; }
+  else if (nb && unseen && C.seen) { nb.hidden = false; nb.textContent = unseen; }
+  return fresh || (r.items || []).length;
+}
+async function poll() {
+  clearTimeout(C.t);
+  if (document.visibilityState === "visible" && !C.busy) {
+    C.busy = true;
+    try {
+      let r; do { r = await api("feed", { rev: C.rev }); const ch = applyFeed(r); if (C.on && ch) renderChat(true); else if (C.on) renderChat(false); } while (r.more);
+    } catch {}
+    C.busy = false;
+  }
+  const quick = C.on && (Date.now() - C.last < 40000 || C.typing);
+  C.t = setTimeout(poll, quick ? 1500 : C.on ? 4000 : 12000);
+}
+async function pressSay(text) { go("chat"); try { await api("say", { text }); } catch { toast(t("err")); } C.last = Date.now(); poll(); }
+async function pressGo(data, msg) { haptic(); if (!C.on) go("chat"); try { await api("press", { data, msg: msg || 0 }); } catch { toast(t("err")); } C.last = Date.now(); poll(); }
+function chat() {
+  V.innerHTML = `<div class="chat" id="chat"></div>
+    <div class="cin"><div class="chips2" id="chips"></div><div class="row2">
+      <button class="ib" id="cat" title="📎">📎</button><textarea id="cmsg" rows="1" placeholder="${TT("Xabar yozing…", "Сообщение…", "Message…")}"></textarea>
+      <button class="ib" id="cmic">🎙</button><button class="ib send" id="csend">➤</button></div>
+      <input type="file" id="cfile" hidden></div>`;
+  renderChat(true);
+  C.seen = Math.max(C.seen, ...C.items.keys(), 0); const nb = $("#nb"); if (nb) nb.hidden = true;
+  const ta = $("#cmsg");
+  ta.oninput = () => { ta.style.height = "auto"; ta.style.height = Math.min(120, ta.scrollHeight) + "px"; };
+  const sendText = async () => { const x = ta.value.trim(); if (!x) return; ta.value = ""; ta.oninput(); haptic();
+    C.items.set(1e12 + Date.now(), { id: 1e12 + Date.now(), kind: "you_text", html: x, tmp: true }); renderChat(true);
+    try { await api("say", { text: x }); } catch { toast(t("err")); }
+    for (const [k, v] of C.items) if (v.tmp) C.items.delete(k); C.last = Date.now(); poll(); };
+  $("#csend").onclick = sendText;
+  ta.onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !/Mobi/i.test(navigator.userAgent)) { e.preventDefault(); sendText(); } };
+  $("#cat").onclick = () => $("#cfile").click();
+  $("#cfile").onchange = async (e) => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    if (f.size > 10 * 1024 * 1024) return toast(TT("Fayl 10 MB dan kichik bo'lsin", "Файл до 10 МБ", "File must be under 10 MB"));
+    const b64 = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.readAsDataURL(f); });
+    toast("⏫ " + f.name);
+    try { await api("upload", { kind: /^image\//.test(f.type) ? "photo" : "doc", name: f.name, mime: f.type || "application/octet-stream", b64, caption: ta.value.trim() || undefined }); ta.value = ""; } catch { toast(t("err")); }
+    C.last = Date.now(); poll();
+  };
+  $("#cmic").onclick = () => C.rec ? stopRec(true) : startRec();
+  $("#chat").onclick = async (e) => {
+    const b = e.target.closest("button, a, .sp"); if (!b) return;
+    if (b.classList.contains("sp")) return b.classList.toggle("open");
+    e.preventDefault(); haptic();
+    if (b.dataset.cb) { b.disabled = true; return pressGo(b.dataset.cb, Number(b.dataset.m)); }
+    if (b.dataset.href || b.dataset.url) { const u = b.dataset.href || b.dataset.url; return /^https:\/\/t\.me\//.test(u) ? tg?.openTelegramLink(u) : tg?.openLink(u); }
+    if (b.dataset.wa) { const m = b.dataset.wa.match(/#(p?call)=(\d+)/); if (m) return m[1] === "pcall" ? pincoming(Number(m[2])) : incoming(Number(m[2])); return tg?.openLink(b.dataset.wa); }
+    if (b.dataset.copy) { try { await navigator.clipboard.writeText(b.dataset.copy); toast("✅"); } catch {} return; }
+    if (b.dataset.dl) { try { tg?.downloadFile ? tg.downloadFile({ url: b.dataset.dl, file_name: b.dataset.n }) : tg?.openLink(b.dataset.dl); } catch { tg?.openLink(b.dataset.dl); } return; }
+    if (b.dataset.inv) { try { tg?.openInvoice(b.dataset.inv, () => { C.last = Date.now(); poll(); }); } catch { toast(t("err")); } }
+  };
+  $("#chips").onclick = (e) => { const b = e.target.closest("button"); if (b) { haptic(); pressSay(b.dataset.say); } };
+  C.last = Date.now(); poll();
+}
+async function startRec() {
+  try {
+    const st = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    const type = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((x) => window.MediaRecorder?.isTypeSupported?.(x)) || "";
+    const rec = new MediaRecorder(st, type ? { mimeType: type } : undefined), parts = [];
+    rec.ondataavailable = (e) => e.data.size && parts.push(e.data);
+    rec.onstop = async () => {
+      st.getTracks().forEach((x) => x.stop());
+      if (!rec._send) return;
+      const blob = new Blob(parts, { type: rec.mimeType || type || "audio/webm" }), dur = Math.round((Date.now() - C.recT0) / 1000);
+      if (dur < 1) return;
+      const b64 = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1] || ""); r.readAsDataURL(blob); });
+      const ext = /mp4/.test(blob.type) ? "m4a" : /ogg/.test(blob.type) ? "ogg" : "webm";
+      try { await api("upload", { kind: "voice", name: "voice." + ext, mime: blob.type, b64, duration: dur }); } catch { toast(t("err")); }
+      C.last = Date.now(); poll();
+    };
+    C.rec = rec; C.recT0 = Date.now(); rec.start();
+    const m = $("#cmic"); if (m) { m.classList.add("rec"); m.textContent = "⏹"; }
+    C.recTimer = setTimeout(() => stopRec(true), 120000);
+  } catch { toast(t("micErr")); }
+}
+function stopRec(send) {
+  clearTimeout(C.recTimer); const r = C.rec; C.rec = null; if (!r) return;
+  r._send = send; try { r.stop(); } catch {}
+  const m = $("#cmic"); if (m) { m.classList.remove("rec"); m.textContent = "🎙"; }
+}
+// 📋 darslar ro'yxati va o'chirish
+const ask = (q) => new Promise((res) => { try { tg.showConfirm(q, (ok) => res(ok)); } catch { res(confirm(q)); } });
+async function lessonsView(id) {
+  haptic();
+  V.innerHTML = `<div class="ok"><b>⏳</b></div>`;
+  let r; try { r = await api("tutor_lessons", { course_id: id }); } catch { toast(t("err")); return go("tutor"); }
+  const ic = { done: "✅", current: "▶️", next: "⏳" };
+  V.innerHTML = `<button class="back" onclick="go('tutor')">${t("back")}</button><h1>📋 ${esc(r.subject)}</h1>
+    <p class="hint">${TT("✅ o'tilgan · ▶️ hozirgi · ⏳ keyingi. Keraksiz darsni 🗑 bilan o'chiring.", "✅ пройден · ▶️ текущий · ⏳ следующий. Удалите лишний урок 🗑.", "✅ done · ▶️ current · ⏳ next. Delete a lesson with 🗑.")}</p>
+    ${r.lessons.map((l) => `<div class="les"><span>${ic[l.state]}</span><div class="tx"><b>${l.n}. ${esc(l.topic)}</b>${l.grade ? ` · ${l.grade}/5` : ""}<small>${esc(l.goal)}</small>
+      ${l.summary ? `<small>📝 ${esc(l.summary)}</small>` : ""}${l.homework ? `<small>🏠 ${esc(l.homework)}</small>` : ""}</div><button data-n="${l.n}">🗑</button></div>`).join("") || `<p class="hint">—</p>`}
+    <button class="btn ghost" id="dc" style="color:#e5484d">🗑 ${TT("Kursni butunlay o'chirish", "Удалить курс полностью", "Delete the whole course")}</button>`;
+  V.querySelectorAll(".les button").forEach((b) => b.onclick = async () => {
+    const l = r.lessons[Number(b.dataset.n) - 1];
+    if (!(await ask(TT(`"${l.n}. ${l.topic}" darsi o'chirilsinmi?`, `Удалить урок «${l.n}. ${l.topic}»?`, `Delete lesson "${l.n}. ${l.topic}"?`)))) return;
+    try { await api("lesson_delete", { course_id: id, n: l.n }); toast("🗑"); refreshMe(); lessonsView(id); } catch { toast(t("err")); }
+  });
+  $("#dc").onclick = () => delCourse(id);
+}
+async function delCourse(id) {
+  const c = (ME.courses || []).find((x) => Number(x.id) === Number(id));
+  if (!(await ask(TT(`"${c ? c.subject : ""}" kursi butunlay o'chirilsinmi? Darslar, so'zlar va natijalar qaytarib bo'lmaydigan tarzda o'chadi.`, `Удалить курс «${c ? c.subject : ""}» полностью? Восстановить нельзя.`, `Delete the course "${c ? c.subject : ""}" completely? This cannot be undone.`)))) return;
+  try { await api("tutor_delete", { course_id: id }); toast("🗑"); ME.courses = (ME.courses || []).filter((x) => Number(x.id) !== Number(id)); go("tutor"); refreshMe(); } catch { toast(t("err")); }
+}
+async function refreshMe() { try { const f = await api("me"); ME = f; LANG = f.lang || LANG; if (document.querySelector("nav button.on")?.dataset.t === "tutor" && !L.ws) tutor(); } catch {} }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") poll(); });
 function go(tab) {
   stopRing();
   if (L.ws && !L.ended) endLive(true);
   document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("on", b.dataset.t === tab));
-  ({ home, tutor, profile })[tab]();
+  C.on = tab === "chat";
+  ({ home, tutor, profile, chat })[tab]();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { haptic(); go(b.dataset.t); });
@@ -555,6 +750,7 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { hapti
     const onHome = !shown || document.querySelector("nav button.on")?.dataset.t === "home";
     const onTutor = document.querySelector("nav button.on")?.dataset.t === "tutor" && !L.ws && !document.getElementById("subj")?.value;
     apply(fresh);
+    poll();
     if (PCALL) { if (!shown) pincoming(PCALL); }
     else if (CALL) { if (!shown) incoming(CALL); }
     else if (onHome && !document.querySelector(".back")) go("home"); else if (onTutor) go("tutor");
