@@ -164,7 +164,7 @@ function tutor() {
     <label>${t("subject")}</label><input id="subj" list="subjs" placeholder="Ingliz tili"><datalist id="subjs">${["Ingliz tili","Rus tili","Koreys tili","Nemis tili","Matematika","Fizika","Kimyo","Biologiya","Tarix","Ona tili va adabiyot","Dasturlash"].map((x) => `<option value="${x}">`).join("")}</datalist>
     <label>${t("tlang")}</label>${SEG("lang", [["uz", "🇺🇿 O'zbekcha"], ["ru", "🇷🇺 Русский"], ["en", "🇬🇧 English"], ["ko", "🇰🇷 한국어"]], ["uz", "ru", "en", "ko"].includes(LANG) ? LANG : "uz")}
     <label>${t("tlevel")}</label>${SEG("teacher_level", [["simple", "🙂 Oddiy"], ["pro", "🎓 Professional"], ["genius", "🧠 Geniy"]], "pro")}
-    <label>${t("tstyle")}</label>${SEG("teacher_style", [["kind", "😊 Hushmuomala"], ["demanding", "📏 Talabchan"], ["strict", "⚡ Qattiqqul"]], "kind")}
+    <label>${t("tstyle")}</label>${SEG("teacher_style", [["kind", "😊 Hushmuomala"], ["demanding", "📏 Talabchan"], ["motivational", "🔥 Ruhlantiruvchi"], ["strict", "⚡ Qattiqqul"]], "kind")}
     <label>${t("slevel")}</label>${SEG("student_level", [["zero", "🌱 Noldan"], ["mid", "🌿 O'rtacha"], ["good", "🌳 Yaxshi"]], "zero")}
     <label>${t("length")}</label>${SEG("lessons", [["7", "1 hafta"], ["26", "1 oy"], ["60", "3 oy"]], "26")}
     <label>${t("tz")}</label>${SEG("tz", [["Asia/Tashkent", "🇺🇿 Toshkent"], ["Asia/Seoul", "🇰🇷 Seul"], ["Europe/Moscow", "🇷🇺 Moskva"]], "Asia/Tashkent")}
