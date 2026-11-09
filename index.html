@@ -306,9 +306,9 @@ async function endLive(silent) {
   cleanupLive();
   const transcript = L.log.filter((m) => m.x.trim()).map((m) => ({ r: m.r, x: m.x.trim() }));
   V.innerHTML = `<div class="ok"><b>⏳</b></div>`;
-  try { await api("live_end", { course_id: L.course, transcript, secs: Math.round((Date.now() - L.t0) / 1000) }); } catch {}
+  try { await L.mode.end(transcript, Math.round((Date.now() - L.t0) / 1000)); } catch {}
   if (silent) return;
-  done(t("liveDone"));
+  done(L.mode.doneText || t("liveDone"));
 }
 function connectLive(info) {
   return new Promise((resolve) => {
@@ -319,7 +319,7 @@ function connectLive(info) {
       let m; try { m = JSON.parse(typeof ev.data === "string" ? ev.data : await ev.data.text()); } catch { return; }
       if (m.setupComplete) {
         ok = true; L.ready = true; L.gotAudio = false; L.kicked2 = false; resolve(true);
-        kick(L.resumeText || KICK);
+        kick(L.resumeText || L.mode.kick);
         clearTimeout(L.wd); L.wd = setTimeout(wdCheck, 8000);
         return;
       }
@@ -327,6 +327,11 @@ function connectLive(info) {
         const resp = [];
         for (const f of m.toolCall.functionCalls || []) {
           if (f.name === "write_board") { boardWrite(f.args || {}); resp.push({ id: f.id, name: f.name, response: { result: "written on the board; tell the student to copy it into the notebook" } }); }
+          else if (f.name === "end_call") {
+            resp.push({ id: f.id, name: f.name, response: { result: "ok, the call ends now" } });
+            // ustoz xayrlashib bo'lgach (ovoz tugagach) qo'ng'iroq yopiladi
+            const t0 = Date.now(), fin = setInterval(() => { if (L.ended) return clearInterval(fin); if ((!L.srcs.length && Date.now() - t0 > 2500) || Date.now() - t0 > 15000) { clearInterval(fin); endLive(); } }, 500);
+          }
           else resp.push({ id: f.id, name: f.name, response: { result: "ok" } });
         }
         wsSend({ toolResponse: { functionResponses: resp } });
@@ -346,7 +351,7 @@ function connectLive(info) {
 // ustoz gapirmay "tinglamoqda"da qolib ketsa: avval qayta turtamiz, keyin boshqa modelga qayta ulanamiz
 function wdCheck() {
   if (L.ended || L.gotAudio || L.reconnecting) return;
-  if (!L.kicked2) { L.kicked2 = true; kick(L.resumeText || KICK); L.wd = setTimeout(wdCheck, 8000); return; }
+  if (!L.kicked2) { L.kicked2 = true; kick(L.resumeText || L.mode.kick); L.wd = setTimeout(wdCheck, 8000); return; }
   L.alt = (L.alt || 0) + 1; reconnect("no audio");
 }
 async function reconnect(why) {
@@ -357,11 +362,11 @@ async function reconnect(why) {
   const recent = L.log.filter((m) => m.x.trim()).slice(-10).map((m) => `${m.r === "u" ? "STUDENT" : "TEACHER"}: ${m.x.trim().slice(0, 300)}`).join("\n");
   L.resumeText = L.log.length
     ? `(The connection was restored after a short break. Continue the lesson exactly from where you stopped — do not greet again and do not start over. Recent conversation:\n${recent})`
-    : KICK;
+    : L.mode.kick;
   for (let i = 0; i < 3 && !L.ended; i++) {
     L.rc = (L.rc || 0) + 1;
     if (L.rc > 6) break;
-    let info; try { info = await api("live_start", { course_id: L.course, alt: Math.min(2, L.alt || 0) }); } catch { L.alt = (L.alt || 0) + 1; continue; }
+    let info; try { info = await L.mode.start(Math.min(2, L.alt || 0)); } catch { L.alt = (L.alt || 0) + 1; continue; }
     const r = await connectLive(info);
     if (r === true) { L.reconnecting = false; setState("listen"); return; }
     L.alt = (L.alt || 0) + 1;
@@ -369,9 +374,28 @@ async function reconnect(why) {
   L.reconnecting = false;
   if (!L.ended) endLive();
 }
-async function liveLesson(id) {
+function liveLesson(id) {
+  return liveCall({
+    lesson: true, course: id, kick: KICK,
+    start: (alt) => api("live_start", { course_id: id, alt }),
+    end: (transcript, secs) => api("live_end", { course_id: id, transcript, secs }),
+    fail: `<button class="btn" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button>`,
+  });
+}
+// 👪 ota-ona GreenBooks ilovasida ustoz bilan gaplashadi (bot "📞 Javob berish" tugmasi: #pcall=<qo'ng'iroq id>)
+function parentCall(id) {
+  return liveCall({
+    lesson: false, course: 0, kick: "(The parent answered the call in the GreenBooks app. Greet them and speak first now.)",
+    start: (alt) => api("parent_live_start", { call_id: id, alt }),
+    end: (transcript, secs) => api("parent_live_end", { call_id: id, transcript, secs }),
+    doneText: TT("Suhbat tugadi. Rahmat!", "Разговор завершён. Спасибо!", "The call has ended. Thank you!"),
+    fail: `<button class="btn" onclick="tg.close()">${t("toChat")}</button>`,
+  });
+}
+async function liveCall(mode) {
   haptic();
-  Object.assign(L, { log: [], cur: null, ended: false, ready: false, warned: false, course: id, muted: false, board: null, alt: 0, rc: 0, resumeText: "", reconnecting: false, nextNote: 180 });
+  const id = mode.course;
+  Object.assign(L, { mode, log: [], cur: null, ended: false, ready: false, warned: false, course: id, muted: false, board: null, alt: 0, rc: 0, resumeText: "", reconnecting: false, nextNote: 180 });
   loadKatex();
   V.innerHTML = `<div class="live"><div class="orb" id="orb"></div><h2 id="lst">${t("connecting")}</h2><div class="hint" id="ltm">00:00</div>
     <div class="board" id="board" hidden></div>
@@ -382,17 +406,17 @@ async function liveLesson(id) {
   try { tg?.enableClosingConfirmation(); tg?.disableVerticalSwipes?.(); } catch {}
   L.outCtx = new (window.AudioContext || window.webkitAudioContext)();
   try { await L.outCtx.resume(); } catch {}
-  if (!navigator.mediaDevices?.getUserMedia) { cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><button class="btn" onclick="go('tutor')">${t("back")}</button></div>`; }
-  try { await startMic(); } catch (e) { console.log("mic", e && (e.name + ": " + e.message)); cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><p class="hint">${esc(e && e.name || "")}</p><button class="btn" onclick="go('tutor')">${t("back")}</button></div>`; }
+  if (!navigator.mediaDevices?.getUserMedia) { cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2>${mode.fail}</div>`; }
+  try { await startMic(); } catch (e) { console.log("mic", e && (e.name + ": " + e.message)); cleanupLive(); return V.innerHTML = `<div class="ok"><b>🎙</b><h2>${t("micErr")}</h2><p class="hint">${esc(e && e.name || "")}</p>${mode.fail}</div>`; }
   let why = "";
   for (let alt = 0; alt < 3 && !L.ended; alt++) {
     L.alt = alt;
     let info;
-    try { info = await api("live_start", { course_id: id, alt }); } catch (e) {
+    try { info = await mode.start(alt); } catch (e) {
       const m = String(e.message), det = e.detail || "";
       cleanupLive(); L.ended = true;
       const msg = m === "limit" ? t("liveLimit") : m === "busy" ? t("busy") : t("liveErr");
-      return V.innerHTML = `<div class="ok"><b>${m === "limit" ? "📚" : "⚠️"}</b><h2>${esc(msg)}</h2><p class="hint">${esc(det)}</p>${m === "limit" ? `<button class="btn" onclick="link('premium')">💎 Premium</button>` : ""}<button class="btn ghost" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+      return V.innerHTML = `<div class="ok"><b>${m === "limit" ? "📚" : "⚠️"}</b><h2>${esc(msg)}</h2><p class="hint">${esc(det)}</p>${m === "limit" ? `<button class="btn" onclick="link('premium')">💎 Premium</button>` : ""}${mode.fail}</div>`;
     }
     L.max = info.max_sec || 900;
     const r = await connectLive(info);
@@ -401,8 +425,8 @@ async function liveLesson(id) {
       L.timer = setInterval(() => {
         const s = Math.floor((Date.now() - L.t0) / 1000), el = $("#ltm");
         if (el) el.textContent = `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")} / ${Math.floor(L.max / 60)}:00`;
-        if (L.ready && s > L.nextNote && s < L.max - 120) { L.nextNote += 180; wsSend({ realtimeInput: { text: `(Time: ${Math.floor(s / 60)} of ${Math.floor(L.max / 60)} min. Keep teaching — do not wrap up yet.)` } }); }
-        if (!L.warned && s > L.max - 90) { L.warned = true; wsSend({ realtimeInput: { text: "(Time: about one minute left. Wrap up now: short summary, say the homework and write it on the board, then goodbye.)" } }); }
+        if (mode.lesson && L.ready && s > L.nextNote && s < L.max - 120) { L.nextNote += 180; wsSend({ realtimeInput: { text: `(Time: ${Math.floor(s / 60)} of ${Math.floor(L.max / 60)} min. Keep teaching — do not wrap up yet.)` } }); }
+        if (!L.warned && s > L.max - 90) { L.warned = true; wsSend({ realtimeInput: { text: mode.lesson ? "(Time: about one minute left. Wrap up now: short summary, say the homework and write it on the board, then goodbye.)" : "(About one minute left: thank the parent, say goodbye, then call end_call.)" } }); }
         if (s >= L.max - 5) endLive();
       }, 1000);
       return;
@@ -410,7 +434,7 @@ async function liveLesson(id) {
     why = r;
   }
   cleanupLive(); L.ended = true;
-  V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("liveErr")}</h2><p class="hint">${esc(why)}</p><button class="btn" onclick="startLesson(${id})">${t("chat")}</button><button class="btn ghost" onclick="go('tutor')">${t("back")}</button></div>`;
+  V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("liveErr")}</h2><p class="hint">${esc(why)}</p>${mode.fail}</div>`;
 }
 // 👪 Ota-ona: ism, telefon, Telegram username — ustoz shular orqali qo'ng'iroq qiladi
 async function parentView() {
@@ -462,7 +486,8 @@ function profile() {
   };
 }
 // 📞 ustoz qo'ng'irog'i (bot xabaridagi "Javob berish" tugmasi: #call=<kurs id>)
-const CALL = Number((location.hash.match(/call=(\d+)/) || [])[1]) || 0;
+const CALL = Number((location.hash.match(/(?:^#|&)call=(\d+)/) || [])[1]) || 0;
+const PCALL = Number((location.hash.match(/pcall=(\d+)/) || [])[1]) || 0;
 const TT = (uz, ru, en) => (LANG === "ru" ? ru : LANG === "en" ? en : uz);
 const RING = { ctx: null, t: null };
 function stopRing() { clearInterval(RING.t); RING.t = null; try { RING.ctx && RING.ctx.close(); } catch {} RING.ctx = null; }
@@ -498,6 +523,16 @@ function incoming(id) {
     setTimeout(() => { try { tg.close(); } catch {} }, 1200);
   };
 }
+function pincoming(id) {
+  document.querySelectorAll("nav button").forEach((b) => b.classList.remove("on"));
+  V.innerHTML = `<div class="incall"><div class="ring">👨‍🏫</div><h2>GreenBooks Ustoz</h2>
+    <p class="hint">${TT("Farzandingizning o'qishi haqida qo'ng'iroq. Savollaringizga javob beraman — mikrofon kerak bo'ladi.", "Звонок об учёбе вашего ребёнка. Отвечу на ваши вопросы — нужен микрофон.", "A call about your child's studies. I'll answer your questions — microphone needed.")}</p>
+    <div class="cbtns"><div><button class="dec" id="cdec">✖</button><small>${TT("Keyinroq", "Позже", "Later")}</small></div>
+    <div><button class="acc" id="cacc">📞</button><small>${TT("Javob berish", "Ответить", "Answer")}</small></div></div></div>`;
+  startRing();
+  $("#cacc").onclick = () => { stopRing(); parentCall(id); };
+  $("#cdec").onclick = () => { stopRing(); haptic(); try { tg.close(); } catch {} };
+}
 function go(tab) {
   stopRing();
   if (L.ws && !L.ended) endLive(true);
@@ -512,7 +547,7 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { hapti
   const uid = tg.initDataUnsafe?.user?.id || 0, CK = "gb_me_" + uid;
   const apply = (m) => { ME = m; LANG = ME.lang || "uz"; document.querySelectorAll("[data-i]").forEach((el) => el.textContent = t(el.dataset.i)); };
   let shown = false;
-  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c && c.sections) { apply(c); CALL ? incoming(CALL) : go("home"); shown = true; } } catch {}
+  try { const c = JSON.parse(localStorage.getItem(CK) || "null"); if (c && c.sections) { apply(c); PCALL ? pincoming(PCALL) : CALL ? incoming(CALL) : go("home"); shown = true; } } catch {}
   if (!shown) V.innerHTML = `<div class="ok"><b>📗</b><p class="hint">…</p></div>`;
   try {
     const fresh = await api("me");
@@ -520,7 +555,8 @@ document.querySelectorAll("nav button").forEach((b) => b.onclick = () => { hapti
     const onHome = !shown || document.querySelector("nav button.on")?.dataset.t === "home";
     const onTutor = document.querySelector("nav button.on")?.dataset.t === "tutor" && !L.ws && !document.getElementById("subj")?.value;
     apply(fresh);
-    if (CALL) { if (!shown) incoming(CALL); }
+    if (PCALL) { if (!shown) pincoming(PCALL); }
+    else if (CALL) { if (!shown) incoming(CALL); }
     else if (onHome && !document.querySelector(".back")) go("home"); else if (onTutor) go("tutor");
   } catch (e) { if (!shown) V.innerHTML = `<div class="ok"><b>⚠️</b><h2>${t("err")}</h2><button class="btn" onclick="location.reload()">↻</button></div>`; }
 })();
